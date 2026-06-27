@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#f7f4ec" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Journal" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>Habit Journal</title>
+<style>
+  :root {
+    --paper: #f7f4ec;
+    --paper-edge: #efe9dc;
+    --dot: #d8d0bf;
+    --ink: #2b2823;
+    --ink-soft: #6f685c;
+    --ink-faint: #a59d8c;
+    --accent: #c2553f;
+    --line: #e3dccb;
+    --shadow: rgba(60, 50, 30, 0.10);
+    --nav-h: 64px;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0; padding: 0;
+    background: #ece6d8;
+    color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  .app {
+    max-width: 760px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background-color: var(--paper);
+    background-image: radial-gradient(circle, var(--dot) 1.1px, transparent 1.4px);
+    background-size: 22px 22px;
+    background-position: 11px 11px;
+    box-shadow: 0 0 40px var(--shadow);
+    position: relative;
+    padding: max(20px, env(safe-area-inset-top)) 18px
+             calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);
+  }
+
+  /* Masthead */
+  header.masthead {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+  }
+  .title {
+    font-size: 26px; font-weight: 600; letter-spacing: 0.5px; margin: 0;
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .title small {
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 400;
+  }
+
+  /* Views */
+  .view { display: none; }
+  .view.active { display: block; animation: fade .2s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px);} to {opacity:1; transform:none;} }
+
+  .view-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; gap: 10px;
+  }
+  .view-head .vtitle { font-size: 20px; font-weight: 600; }
+  .view-head .vsub { font-size: 13px; color: var(--ink-faint); }
+
+  .navbtn {
+    border: 1.5px solid var(--ink); background: transparent; color: var(--ink);
+    width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+    font-size: 16px; line-height: 1; display: grid; place-items: center;
+    font-family: inherit; flex: none;
+  }
+  .navbtn:active { background: var(--ink); color: var(--paper); }
+  .daynav { display: flex; align-items: center; gap: 12px; }
+  .daynav .label { min-width: 140px; text-align: center; font-weight: 600; }
+
+  /* ---------- TODAY VIEW ---------- */
+  .today-date { font-size: 15px; color: var(--ink-soft); margin-bottom: 16px; }
+  .today-date b { color: var(--ink); font-size: 17px; }
+
+  ul.todaylist { list-style: none; margin: 0; padding: 0; }
+  ul.todaylist li {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 4px; border-top: 1px solid var(--line);
+    cursor: pointer; user-select: none;
+  }
+  ul.todaylist li:last-child { border-bottom: 1px solid var(--line); }
+  .t-check {
+    width: 30px; height: 30px; flex: none;
+    border: 2px solid var(--ink-faint); border-radius: 7px;
+    display: grid; place-items: center;
+    color: transparent; font-size: 19px; transition: all .12s ease;
+  }
+  ul.todaylist li:active .t-check { transform: scale(0.9); }
+  ul.todaylist li.done .t-check {
+    background: var(--accent); border-color: var(--accent); color: var(--paper);
+  }
+  ul.todaylist li.done .t-check::after { content: "✓"; }
+  .t-name { flex: 1; font-size: 18px; }
+  ul.todaylist li.done .t-name { color: var(--ink-soft); }
+  .t-streak {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13px; color: var(--ink-faint); flex: none;
+  }
+  .t-streak b { color: var(--accent); }
+  .t-del {
+    color: var(--ink-faint); font-size: 15px; flex: none; padding: 4px 6px;
+    margin-right: -4px;
+  }
+  .t-del:active { color: var(--accent); }
+
+  /* ---------- ADD BAR ---------- */
+  .addbar { margin-top: 22px; display: flex; gap: 10px; align-items: center; }
+  .addbar input {
+    flex: 1; border: none; border-bottom: 1.5px dashed var(--ink-faint);
+    background: transparent; font-family: inherit; font-size: 16px;
+    color: var(--ink); padding: 8px 2px; outline: none;
+  }
+  .addbar input::placeholder { color: var(--ink-faint); font-style: italic; }
+  .addbar input:focus { border-bottom-color: var(--accent); border-bottom-style: solid; }
+  .addbar button {
+    border: 1.5px solid var(--ink); background: var(--ink); color: var(--paper);
+    font-family: inherit; font-size: 15px; padding: 9px 18px; border-radius: 4px;
+    cursor: pointer; letter-spacing: 0.5px; flex: none;
+  }
+  .addbar button:active { background: var(--accent); border-color: var(--accent); }
+
+  .empty {
+    text-align: center; color: var(--ink-faint); font-style: italic;
+    padding: 28px 12px; font-size: 16px; line-height: 1.5;
+  }
+
+  /* ---------- MONTH GRID ---------- */
+  .grid-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -18px; padding: 0 18px 6px; }
+  table.tracker { border-collapse: collapse; }
+  table.tracker th, table.tracker td { padding: 0; }
+  .corner {
+    text-align: left; vertical-align: bottom; padding-bottom: 8px !important;
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 400; width: 120px;
+    position: sticky; left: 0; background: var(--paper);
+  }
+  th.day {
+    font-size: 12px; color: var(--ink-soft); font-weight: 600; width: 34px;
+    padding-bottom: 8px !important; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  th.day .dow { display: block; font-size: 8px; color: var(--ink-faint); font-weight: 400; text-transform: uppercase; }
+  th.day.today, th.day.today .dow { color: var(--accent); }
+  tr.habit-row { border-top: 1px solid var(--line); }
+  tr.habit-row:last-child { border-bottom: 1px solid var(--line); }
+  td.habit-name {
+    font-size: 15px; padding: 0 10px 0 4px !important; height: 44px;
+    white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis;
+    position: sticky; left: 0; background: var(--paper);
+  }
+  td.habit-name .dot-mark { color: var(--accent); margin-right: 6px; font-size: 12px; }
+  td.cell { width: 34px; height: 44px; text-align: center; vertical-align: middle; cursor: pointer; }
+  td.cell .box {
+    width: 24px; height: 24px; margin: 0 auto; border: 1.5px solid var(--ink-faint);
+    border-radius: 5px; display: grid; place-items: center; transition: all .1s ease;
+    color: transparent; font-size: 16px; line-height: 1;
+  }
+  td.cell:active .box { transform: scale(0.85); }
+  td.cell.done .box { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+  td.cell.done .box::after { content: "✓"; }
+  td.cell.todaycol { background: rgba(194,85,63,0.06); }
+  td.cell.future { cursor: default; }
+  td.cell.future .box { border-color: var(--line); }
+  .tally { margin-top: 16px; font-size: 13px; color: var(--ink-faint); text-align: center; }
+
+  /* ---------- HIGHLIGHTS VIEW ---------- */
+  .hl-prompt { font-size: 16px; color: var(--ink-soft); margin-bottom: 8px; font-style: italic; }
+  textarea.hl-input {
+    width: 100%; min-height: 160px; resize: vertical;
+    border: none; outline: none; background: transparent;
+    font-family: inherit; font-size: 18px; line-height: 33px; color: var(--ink);
+    /* ruled-paper lines */
+    background-image: linear-gradient(to bottom, transparent 32px, var(--line) 32px, var(--line) 33px);
+    background-size: 100% 33px;
+    padding: 0; margin-bottom: 8px;
+  }
+  textarea.hl-input::placeholder { color: var(--ink-faint); font-style: italic; }
+  .hl-saved { font-size: 12px; color: var(--ink-faint); height: 16px; text-align: right; }
+  .hl-past-title {
+    margin: 28px 0 6px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--ink-faint); border-top: 1px dotted var(--ink-faint); padding-top: 14px;
+  }
+  ul.hl-past { list-style: none; margin: 0; padding: 0; }
+  ul.hl-past li { padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+  ul.hl-past li .d { font-size: 12px; color: var(--accent); font-family: ui-monospace, Menlo, monospace; }
+  ul.hl-past li .t { font-size: 15px; color: var(--ink-soft); margin-top: 3px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+  /* ---------- BOTTOM NAV ---------- */
+  nav.tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--paper);
+    border-top: 1.5px solid var(--ink);
+    display: flex; z-index: 20;
+    max-width: 760px; margin: 0 auto;
+  }
+  nav.tabbar button {
+    flex: 1; background: none; border: none; cursor: pointer;
+    font-family: inherit; color: var(--ink-faint);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; font-size: 11px; letter-spacing: 0.5px; padding: 6px 0;
+  }
+  nav.tabbar button .ico { font-size: 19px; line-height: 1; }
+  nav.tabbar button.active { color: var(--accent); }
+  nav.tabbar button.active .lbl { font-weight: 600; }
+
+  a.linkish { color: var(--ink-soft); cursor: pointer; text-decoration: none; border-bottom: 1px dotted var(--ink-faint); }
+  a.linkish:active { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="masthead">
+    <h1 class="title">Habit Journal <small id="mastSub">one box a day</small></h1>
+  </header>
+
+  <!-- ============ TODAY ============ -->
+  <section class="view active" id="view-today">
+    <div class="today-date" id="todayDate"></div>
+    <ul class="todaylist" id="todayList"></ul>
+    <div id="todayEmpty" class="empty" style="display:none;">
+      No habits yet.<br/>Add your first one below.
+    </div>
+    <div class="addbar">
+      <input id="newHabit" type="text" placeholder="Add a habit — Lift, Read, Water…" maxlength="40" />
+      <button id="addBtn">Add</button>
+    </div>
+  </section>
+
+  <!-- ============ MONTH ============ -->
+  <section class="view" id="view-month">
+    <div class="view-head">
+      <button class="navbtn" id="prevM">‹</button>
+      <span class="vtitle" id="monthLabel" style="flex:1; text-align:center;"></span>
+      <button class="navbtn" id="nextM">›</button>
+    </div>
+    <div class="grid-wrap">
+      <table class="tracker">
+        <thead><tr id="headRow"></tr></thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+    <div id="monthEmpty" class="empty" style="display:none;">
+      Add habits in the Today tab to see them here.
+    </div>
+    <div class="tally" id="tally"></div>
+    <div class="tally" style="margin-top:18px;">
+      <a class="linkish" id="exportBtn">export backup</a> &nbsp;·&nbsp;
+      <a class="linkish" id="importBtn">import</a>
+    </div>
+  </section>
+
+  <!-- ============ HIGHLIGHTS ============ -->
+  <section class="view" id="view-hl">
+    <div class="view-head">
+      <button class="navbtn" id="prevD">‹</button>
+      <span class="label" id="hlDate" style="flex:1; text-align:center; font-weight:600;"></span>
+      <button class="navbtn" id="nextD">›</button>
+    </div>
+    <div class="hl-prompt">What was the highlight of your day?</div>
+    <textarea class="hl-input" id="hlInput" placeholder="One good thing, a small win, something you noticed…"></textarea>
+    <div class="hl-saved" id="hlSaved"></div>
+
+    <div class="hl-past-title">Past highlights</div>
+    <ul class="hl-past" id="hlPast"></ul>
+    <div id="hlPastEmpty" class="empty" style="display:none; padding:18px;">
+      Nothing written yet.
+    </div>
+  </section>
+</div>
+
+<!-- ============ TAB BAR ============ -->
+<nav class="tabbar">
+  <button data-tab="today" class="active"><span class="ico">✦</span><span class="lbl">Today</span></button>
+  <button data-tab="month"><span class="ico">▦</span><span class="lbl">Month</span></button>
+  <button data-tab="hl"><span class="ico">✎</span><span class="lbl">Highlights</span></button>
+</nav>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "habit-journal-v1";
+  var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var MON_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var DOW = ["S","M","T","W","T","F","S"];
+  var DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+  // data = { habits:[{id,name,marks:{}}], highlights:{ "y-m-d": "text" } }
+  var data = load();
+  if (!data.highlights) data.highlights = {};
+
+  var now = new Date();
+  var viewYear = now.getFullYear();
+  var viewMonth = now.getMonth();
+  var hlDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // selected highlight day
+
+  function load() {
+    try { var raw = localStorage.getItem(STORAGE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+    return { habits: [], highlights: {} };
+  }
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+  }
+  function uid() { return "h" + Date.now().toString(36) + Math.floor(Math.random()*1e6).toString(36); }
+  function key(y,m,d){ return y+"-"+m+"-"+d; }
+  function keyOf(dt){ return key(dt.getFullYear(), dt.getMonth(), dt.getDate()); }
+  function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+  function isFuture(y,m,d){ return new Date(y,m,d) > new Date(now.getFullYear(),now.getMonth(),now.getDate()); }
+  function isToday(y,m,d){ return y===now.getFullYear() && m===now.getMonth() && d===now.getDate(); }
+  function sameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+
+  function currentStreak(habit) {
+    var count = 0;
+    var cursor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (!habit.marks[keyOf(cursor)]) cursor.setDate(cursor.getDate()-1);
+    while (habit.marks[keyOf(cursor)]) { count++; cursor.setDate(cursor.getDate()-1); }
+    return count;
+  }
+  function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+
+  // ---------------- TABS ----------------
+  var tabs = document.querySelectorAll("nav.tabbar button");
+  var views = { today: document.getElementById("view-today"), month: document.getElementById("view-month"), hl: document.getElementById("view-hl") };
+  var subs = { today: "one box a day", month: "the month at a glance", hl: "highlight of the day" };
+  var mastSub = document.getElementById("mastSub");
+
+  function switchTab(name) {
+    tabs.forEach(function(b){ b.classList.toggle("active", b.dataset.tab===name); });
+    Object.keys(views).forEach(function(k){ views[k].classList.toggle("active", k===name); });
+    mastSub.textContent = subs[name];
+    if (name==="today") renderToday();
+    if (name==="month") renderMonth();
+    if (name==="hl") renderHL();
+    window.scrollTo(0,0);
+  }
+  tabs.forEach(function(b){ b.addEventListener("click", function(){ switchTab(b.dataset.tab); }); });
+
+  // ---------------- TODAY ----------------
+  var todayList = document.getElementById("todayList");
+  var todayEmpty = document.getElementById("todayEmpty");
+  var todayDate = document.getElementById("todayDate");
+
+  function renderToday() {
+    todayDate.innerHTML = DAYS[now.getDay()] + " · <b>" + MON_ABBR[now.getMonth()] + " " + now.getDate() + "</b>";
+    todayList.innerHTML = "";
+    todayEmpty.style.display = data.habits.length ? "none" : "block";
+
+    var tk = keyOf(now);
+    data.habits.forEach(function(habit){
+      var done = !!habit.marks[tk];
+      var streak = currentStreak(habit);
+      var li = document.createElement("li");
+      if (done) li.className = "done";
+      li.innerHTML =
+        '<div class="t-check"></div>' +
+        '<div class="t-name">' + escapeHtml(habit.name) + '</div>' +
+        (streak>0 ? '<div class="t-streak"><b>▲</b> ' + streak + '</div>' : '') +
+        '<div class="t-del">✕</div>';
+
+      li.addEventListener("click", function(e){
+        if (e.target.classList.contains("t-del")) {
+          if (confirm('Delete "'+habit.name+'"?')) {
+            data.habits = data.habits.filter(function(h){return h.id!==habit.id;});
+            save(); renderToday();
+          }
+          return;
+        }
+        if (habit.marks[tk]) delete habit.marks[tk]; else habit.marks[tk] = true;
+        save(); renderToday();
+      });
+      todayList.appendChild(li);
+    });
+  }
+
+  function addHabit(name) {
+    name = (name||"").trim(); if (!name) return;
+    data.habits.push({ id: uid(), name: name.slice(0,40), marks: {} });
+    save(); renderToday();
+  }
+  var input = document.getElementById("newHabit");
+  document.getElementById("addBtn").addEventListener("click", function(){ addHabit(input.value); input.value=""; input.focus(); });
+  input.addEventListener("keydown", function(e){ if(e.key==="Enter"){ addHabit(input.value); input.value=""; } });
+
+  // ---------------- MONTH ----------------
+  var headRow = document.getElementById("headRow");
+  var body = document.getElementById("body");
+  var monthLabel = document.getElementById("monthLabel");
+  var monthEmpty = document.getElementById("monthEmpty");
+  var tally = document.getElementById("tally");
+
+  function renderMonth() {
+    monthLabel.textContent = MONTHS[viewMonth] + " " + viewYear;
+    var dim = daysInMonth(viewYear, viewMonth);
+    monthEmpty.style.display = data.habits.length ? "none" : "block";
+
+    var head = '<th class="corner">Habit</th>';
+    for (var d=1; d<=dim; d++){
+      var dow = DOW[new Date(viewYear,viewMonth,d).getDay()];
+      var tcls = isToday(viewYear,viewMonth,d) ? " today" : "";
+      head += '<th class="day'+tcls+'">'+d+'<span class="dow">'+dow+'</span></th>';
+    }
+    headRow.innerHTML = head;
+
+    body.innerHTML = "";
+    data.habits.forEach(function(habit){
+      var tr = document.createElement("tr");
+      tr.className = "habit-row";
+      var nameTd = document.createElement("td");
+      nameTd.className = "habit-name";
+      nameTd.innerHTML = '<span class="dot-mark">●</span>' + escapeHtml(habit.name);
+      tr.appendChild(nameTd);
+      for (var d=1; d<=dim; d++){
+        (function(d){
+          var td = document.createElement("td");
+          var k = key(viewYear,viewMonth,d);
+          var future = isFuture(viewYear,viewMonth,d);
+          td.className = "cell" + (habit.marks[k]?" done":"") + (isToday(viewYear,viewMonth,d)?" todaycol":"") + (future?" future":"");
+          td.innerHTML = '<div class="box"></div>';
+          if (!future) td.addEventListener("click", function(){
+            if (habit.marks[k]) delete habit.marks[k]; else habit.marks[k]=true;
+            save(); td.classList.toggle("done"); updateTally();
+          });
+          tr.appendChild(td);
+        })(d);
+      }
+      body.appendChild(tr);
+    });
+    updateTally();
+  }
+  function updateTally() {
+    var dim = daysInMonth(viewYear, viewMonth), done=0, possible=0;
+    data.habits.forEach(function(habit){
+      for (var d=1; d<=dim; d++){ if (isFuture(viewYear,viewMonth,d)) continue; possible++; if (habit.marks[key(viewYear,viewMonth,d)]) done++; }
+    });
+    tally.textContent = (possible && data.habits.length) ? (done+" of "+possible+" boxes filled · "+Math.round(done/possible*100)+"%") : "";
+  }
+  document.getElementById("prevM").addEventListener("click", function(){ viewMonth--; if(viewMonth<0){viewMonth=11;viewYear--;} renderMonth(); });
+  document.getElementById("nextM").addEventListener("click", function(){ viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;} renderMonth(); });
+
+  // ---------------- HIGHLIGHTS ----------------
+  var hlInput = document.getElementById("hlInput");
+  var hlDateLbl = document.getElementById("hlDate");
+  var hlSaved = document.getElementById("hlSaved");
+  var hlPast = document.getElementById("hlPast");
+  var hlPastEmpty = document.getElementById("hlPastEmpty");
+  var saveTimer = null;
+
+  function hlLabel(dt){
+    if (sameDay(dt, now)) return "Today";
+    var y = new Date(now); y.setDate(now.getDate()-1);
+    if (sameDay(dt, y)) return "Yesterday";
+    return DAYS[dt.getDay()].slice(0,3) + ", " + MON_ABBR[dt.getMonth()] + " " + dt.getDate();
+  }
+
+  function renderHL() {
+    hlDateLbl.textContent = hlLabel(hlDate);
+    hlInput.value = data.highlights[keyOf(hlDate)] || "";
+    hlSaved.textContent = "";
+    // disable navigating into the future
+    document.getElementById("nextD").style.visibility = sameDay(hlDate, now) ? "hidden" : "visible";
+    renderPast();
+  }
+  function renderPast() {
+    var keys = Object.keys(data.highlights).filter(function(k){ return (data.highlights[k]||"").trim(); });
+    keys.sort(function(a,b){
+      var pa=a.split("-").map(Number), pb=b.split("-").map(Number);
+      return new Date(pb[0],pb[1],pb[2]) - new Date(pa[0],pa[1],pa[2]);
+    });
+    hlPast.innerHTML = "";
+    hlPastEmpty.style.display = keys.length ? "none" : "block";
+    keys.forEach(function(k){
+      var p = k.split("-").map(Number);
+      var dt = new Date(p[0],p[1],p[2]);
+      var li = document.createElement("li");
+      li.innerHTML = '<div class="d">'+ hlLabel(dt) +'</div><div class="t">'+ escapeHtml(data.highlights[k]) +'</div>';
+      li.addEventListener("click", function(){ hlDate = dt; renderHL(); window.scrollTo(0,0); hlInput.focus(); });
+      hlPast.appendChild(li);
+    });
+  }
+  hlInput.addEventListener("input", function(){
+    var k = keyOf(hlDate);
+    if (hlInput.value.trim()) data.highlights[k] = hlInput.value;
+    else delete data.highlights[k];
+    hlSaved.textContent = "saving…";
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function(){ save(); hlSaved.textContent = "saved ✓"; }, 400);
+  });
+  hlInput.addEventListener("blur", function(){ save(); renderPast(); });
+  document.getElementById("prevD").addEventListener("click", function(){ save(); hlDate.setDate(hlDate.getDate()-1); renderHL(); });
+  document.getElementById("nextD").addEventListener("click", function(){ if(sameDay(hlDate,now)) return; save(); hlDate.setDate(hlDate.getDate()+1); renderHL(); });
+
+  // ---------------- EXPORT / IMPORT ----------------
+  document.getElementById("exportBtn").addEventListener("click", function(){
+    var blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a"); a.href=url; a.download="habit-journal-backup.json"; a.click();
+    URL.revokeObjectURL(url);
+  });
+  document.getElementById("importBtn").addEventListener("click", function(){
+    var inp = document.createElement("input"); inp.type="file"; inp.accept="application/json,.json";
+    inp.addEventListener("change", function(){
+      var f = inp.files[0]; if(!f) return;
+      var r = new FileReader();
+      r.onload = function(){
+        try { var p = JSON.parse(r.result);
+          if (p && Array.isArray(p.habits)) {
+            if (confirm("Replace your current journal with the imported one?")) {
+              if (!p.highlights) p.highlights = {};
+              data = p; save(); renderMonth(); renderToday();
+            }
+          } else alert("That doesn't look like a habit-journal backup.");
+        } catch(e){ alert("Couldn't read that file."); }
+      };
+      r.readAsText(f);
+    });
+    inp.click();
+  });
+
+  // First-run seed
+  if (data.habits.length === 0 && !localStorage.getItem(STORAGE_KEY)) {
+    ["Lift","Read 10 min","Water"].forEach(function(n){ data.habits.push({id:uid(),name:n,marks:{}}); });
+    save();
+  }
+
+  // Register service worker (works when hosted over http/https)
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  }
+
+  renderToday();
+})();
+</script>
+</body>
+</html>
