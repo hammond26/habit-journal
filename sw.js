@@ -1,5 +1,6 @@
-/* Simple offline cache for Habit Journal */
-var CACHE = "habit-journal-v2";
+/* Offline cache for Habit Journal.
+   HTML = network-first (so updates show when online), other assets = cache-first. */
+var CACHE = "habit-journal-v3";
 var ASSETS = ["./", "./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", function (e) {
@@ -16,14 +17,33 @@ self.addEventListener("activate", function (e) {
 });
 
 self.addEventListener("fetch", function (e) {
-  if (e.request.method !== "GET") return;
-  e.respondWith(
-    caches.match(e.request).then(function (cached) {
-      return cached || fetch(e.request).then(function (res) {
+  var req = e.request;
+  if (req.method !== "GET") return;
+
+  var isHTML = req.mode === "navigate" ||
+    (req.headers.get("accept") || "").indexOf("text/html") !== -1;
+
+  if (isHTML) {
+    // network-first: always try to load the freshest page, fall back to cache offline
+    e.respondWith(
+      fetch(req).then(function (res) {
         var copy = res.clone();
-        caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
+        caches.open(CACHE).then(function (c) { c.put(req, copy); });
         return res;
-      }).catch(function () { return cached; });
-    })
-  );
+      }).catch(function () {
+        return caches.match(req).then(function (c) { return c || caches.match("./index.html"); });
+      })
+    );
+  } else {
+    // cache-first for static assets
+    e.respondWith(
+      caches.match(req).then(function (cached) {
+        return cached || fetch(req).then(function (res) {
+          var copy = res.clone();
+          caches.open(CACHE).then(function (c) { c.put(req, copy); });
+          return res;
+        });
+      })
+    );
+  }
 });
